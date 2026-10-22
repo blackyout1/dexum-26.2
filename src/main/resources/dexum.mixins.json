@@ -1,0 +1,43 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dexum.client.mixins",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "entity.ClientPlayerEntityMixin",
+    "entity.LivingEntityMixin",
+    "entity.EntityMixin",
+
+    "network.ClientConnectionMixin",
+    "network.LookPacketMixin",
+    "network.FullPacketMixin",
+
+    "client.ClientPlayNetworkHandlerMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.MinecraftMixin",
+
+    "render.GameRendererMixin",
+    "render.InGameHudMixin",
+    "render.CameraMixin",
+    "render.LevelRendererMixin",
+    "render.EntityRendererMixin",
+
+    "screen.ChatScreenMixin",
+    "screen.ChatInputSuggestorMixin",
+    "screen.TitleScreenMixin",
+
+    "input.KeyboardInputMixin",
+    "input.MouseMixin",
+    "input.HudMouseMixin",
+
+    "accessor.CameraAccessor"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

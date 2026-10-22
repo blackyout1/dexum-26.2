@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "dexum",
+  "version": "${version}",
+  "name": "Dexum",
+  "description": "Advanced Minecraft utility client",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dexum.client.Dexum"
+    ]
+  },
+  "mixins": [
+    "dexum.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

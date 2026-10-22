@@ -1,0 +1,15 @@
+package dexum.client.system.settings.impl;
+
+import dexum.client.system.settings.Setting;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.awt.*;
+
+public class ColorSetting extends Setting {
+    @Getter @Setter Color color;
+    public ColorSetting(String name, Color color) {
+        super(name);
+        this.color = color;
+    }
+}
