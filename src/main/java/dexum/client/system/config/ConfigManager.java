@@ -11,51 +11,49 @@ import net.minecraft.client.Minecraft;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Менеджер конфигов
+ * Менеджер конфигов.
+ * <p>
+ * Запись атомарная (временный файл + {@code Files.move} с {@code ATOMIC_MOVE}),
+ * чтобы краш посреди сохранения не оставлял битый конфиг.
+ * <p>
+ * Загрузка использует {@link Function#setEnabled(boolean)} (идемпотентный, без реентрантности)
+ * вместо старого {@code toggle()}.
  */
 public class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    
+
     @Getter
     private static final File configsDir = new File(Minecraft.getInstance().gameDirectory, "dexum/configs");
-    
+
     @Getter
     private static final List<Config> configs = new ArrayList<>();
-    
+
     @Getter
     private static Config currentConfig;
-    
-    /**
-     * Инициализация
-     */
+
     public static void init() {
         if (!configsDir.exists()) {
             configsDir.mkdirs();
         }
-        
-        // Загружаем список конфигов
         loadConfigList();
-        
-        // Загружаем автосохраненный конфиг
+
         Config autosave = new Config("autosave");
         if (autosave.exists()) {
             autosave.load();
         }
         currentConfig = autosave;
     }
-    
-    /**
-     * Загрузить список конфигов из папки
-     */
+
     public static void loadConfigList() {
         configs.clear();
-        
         File[] files = configsDir.listFiles((dir, name) -> name.endsWith(".json"));
         if (files != null) {
             for (File file : files) {
@@ -64,39 +62,41 @@ public class ConfigManager {
             }
         }
     }
-    
+
     /**
-     * Сохранить конфиг
+     * Сохраняет конфиг атомарно: сначала пишем {@code <name>.json.tmp}, потом
+     * {@code Files.move(..., ATOMIC_MOVE)}.
      */
     public static boolean saveConfig(Config config) {
+        File target = config.getFile();
+        File parent = target.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+
+        File tmp = new File(parent, target.getName() + ".tmp");
+
         try {
             JsonObject root = new JsonObject();
             JsonArray modulesArray = new JsonArray();
-            
-            // Сохраняем состояние модулей
+
             for (Function function : FunctionManager.getFunctions()) {
                 JsonObject moduleObj = new JsonObject();
                 moduleObj.addProperty("name", function.getName());
                 moduleObj.addProperty("enabled", function.isEnabled());
                 moduleObj.addProperty("keybind", function.getKeybind());
-                
-                // Сохраняем настройки модуля
+
                 if (!function.getSettings().isEmpty()) {
                     JsonObject settingsObj = new JsonObject();
-                    
                     for (Setting setting : function.getSettings()) {
                         saveSetting(settingsObj, setting);
                     }
-                    
                     moduleObj.add("settings", settingsObj);
                 }
-                
+
                 modulesArray.add(moduleObj);
             }
-            
+
             root.add("modules", modulesArray);
 
-            // Сохраняем позиции панелей ClickGUI
             JsonObject panelsObj = new JsonObject();
             for (Map.Entry<String, PanelPositionManager.PanelPos> entry : PanelPositionManager.getAll().entrySet()) {
                 JsonObject posObj = new JsonObject();
@@ -106,112 +106,105 @@ public class ConfigManager {
             }
             root.add("panels", panelsObj);
 
-            // Сохраняем позиции HUD-элементов
             JsonObject hudObj = new JsonObject();
             FunctionManager.getFunctions().stream()
-                .filter(f -> f instanceof dexum.client.system.features.render.Watermark)
-                .map(f -> (dexum.client.system.features.render.Watermark) f)
-                .findFirst().ifPresent(wm -> {
-                    JsonObject wmPos = new JsonObject();
-                    wmPos.addProperty("x", wm.getPosX());
-                    wmPos.addProperty("y", wm.getPosY());
-                    hudObj.add("watermark", wmPos);
-                });
+                    .filter(f -> f instanceof dexum.client.system.features.render.Watermark)
+                    .map(f -> (dexum.client.system.features.render.Watermark) f)
+                    .findFirst().ifPresent(wm -> {
+                        JsonObject wmPos = new JsonObject();
+                        wmPos.addProperty("x", wm.getPosX());
+                        wmPos.addProperty("y", wm.getPosY());
+                        hudObj.add("watermark", wmPos);
+                    });
             root.add("hud", hudObj);
 
-            // Записываем в файл
-            try (Writer writer = new OutputStreamWriter(new FileOutputStream(config.getFile()), StandardCharsets.UTF_8)) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
                 GSON.toJson(root, writer);
             }
-            
+
+            try {
+                Files.move(tmp.toPath(), target.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+
             return true;
         } catch (Exception e) {
+            try { Files.deleteIfExists(tmp.toPath()); } catch (Exception ignored) {}
             e.printStackTrace();
             return false;
         }
     }
-    
-    /**
-     * Загрузить конфиг
-     */
+
     public static boolean loadConfig(Config config) {
         try {
-            if (!config.exists()) {
-                return false;
-            }
-            
+            if (!config.exists()) return false;
+
             String content = new String(Files.readAllBytes(config.getFile().toPath()), StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(content).getAsJsonObject();
-            
+
             JsonArray modulesArray = root.getAsJsonArray("modules");
-            
+
             for (JsonElement element : modulesArray) {
                 JsonObject moduleObj = element.getAsJsonObject();
                 String name = moduleObj.get("name").getAsString();
-                
+
                 Function function = FunctionManager.getFunctions().stream()
                         .filter(f -> f.getName().equals(name))
                         .findFirst()
                         .orElse(null);
-                
+
                 if (function == null) continue;
-                
-                // Загружаем состояние
+
+                // setEnabled идемпотентен — можно вызывать даже если состояние не меняется
                 boolean enabled = moduleObj.get("enabled").getAsBoolean();
-                if (enabled != function.isEnabled()) {
-                    function.toggle();
-                }
-                
-                // Загружаем кейбинд
+                function.setEnabled(enabled);
+
                 int keybind = moduleObj.get("keybind").getAsInt();
                 function.setKeybind(keybind);
-                
-                // Загружаем настройки
+
                 if (moduleObj.has("settings")) {
                     JsonObject settingsObj = moduleObj.getAsJsonObject("settings");
-                    
                     for (Setting setting : function.getSettings()) {
                         loadSetting(settingsObj, setting);
                     }
                 }
             }
-            
-            currentConfig = config;
 
-            // Загружаем позиции панелей ClickGUI
             if (root.has("panels")) {
                 JsonObject panelsObj = root.getAsJsonObject("panels");
                 Map<String, PanelPositionManager.PanelPos> positions = new java.util.HashMap<>();
                 for (Map.Entry<String, JsonElement> entry : panelsObj.entrySet()) {
                     JsonObject posObj = entry.getValue().getAsJsonObject();
-                    int x = posObj.get("x").getAsInt();
-                    int y = posObj.get("y").getAsInt();
-                    positions.put(entry.getKey(), new PanelPositionManager.PanelPos(x, y));
+                    positions.put(entry.getKey(), new PanelPositionManager.PanelPos(
+                            posObj.get("x").getAsInt(), posObj.get("y").getAsInt()));
                 }
                 PanelPositionManager.setAll(positions);
             }
 
-            // Загружаем позиции HUD-элементов
             if (root.has("hud")) {
                 JsonObject hudObj = root.getAsJsonObject("hud");
                 if (hudObj.has("watermark")) {
                     JsonObject wmPos = hudObj.getAsJsonObject("watermark");
                     FunctionManager.getFunctions().stream()
-                        .filter(f -> f instanceof dexum.client.system.features.render.Watermark)
-                        .map(f -> (dexum.client.system.features.render.Watermark) f)
-                        .findFirst().ifPresent(wm -> {
-                            wm.setPosX(wmPos.get("x").getAsFloat());
-                            wm.setPosY(wmPos.get("y").getAsFloat());
-                        });
+                            .filter(f -> f instanceof dexum.client.system.features.render.Watermark)
+                            .map(f -> (dexum.client.system.features.render.Watermark) f)
+                            .findFirst().ifPresent(wm -> {
+                                wm.setPosX(wmPos.get("x").getAsFloat());
+                                wm.setPosY(wmPos.get("y").getAsFloat());
+                            });
                 }
             }
 
+            currentConfig = config;
             return true;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
+
     private static void saveSetting(JsonObject obj, Setting setting) {
         String name = setting.getName();
         if (setting instanceof BooleanSetting s) {
@@ -227,16 +220,12 @@ public class ConfigManager {
             }
             obj.add(name, multiObj);
         } else if (setting instanceof ColorSetting s) {
-            // Сохраняем как ARGB int
             obj.addProperty(name, s.getColor().getRGB());
         } else if (setting instanceof KeybindSetting s) {
             obj.addProperty(name, s.getKeybind());
         }
     }
 
-    /**
-     * Загрузить настройку из JSON
-     */
     private static void loadSetting(JsonObject obj, Setting setting) {
         String name = setting.getName();
         if (!obj.has(name)) return;
@@ -263,14 +252,11 @@ public class ConfigManager {
             } else if (setting instanceof KeybindSetting s) {
                 s.setKeybind(obj.get(name).getAsInt());
             }
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             // Битый конфиг — пропускаем настройку
         }
     }
-    
-    /**
-     * Автосохранение при выходе
-     */
+
     public static void shutdown() {
         Config autosave = new Config("autosave");
         autosave.save();

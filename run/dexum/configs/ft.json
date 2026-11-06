@@ -1,0 +1,213 @@
+{
+  "modules": [
+    {
+      "name": "TriggerBot",
+      "enabled": false,
+      "keybind": 82,
+      "settings": {
+        "Цели": {
+          "Игроки": true,
+          "Мобы": false,
+          "Животные": false
+        },
+        "Только криты": true,
+        "Криты с пробелом": true,
+        "Тайминги": false
+      }
+    },
+    {
+      "name": "NoFriendDamage",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "AimAssist",
+      "enabled": true,
+      "keybind": 0,
+      "settings": {
+        "Дальность": 3.0,
+        "FOV": 60.0,
+        "Сила": 1.0,
+        "Игроки": true,
+        "Мобы": false,
+        "Животные": false
+      }
+    },
+    {
+      "name": "Sprint",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "AutoSneak",
+      "enabled": false,
+      "keybind": 0,
+      "settings": {
+        "Только при движении": true
+      }
+    },
+    {
+      "name": "ClickGui",
+      "enabled": false,
+      "keybind": 344
+    },
+    {
+      "name": "NoBob",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "Watermark",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "FreeCam",
+      "enabled": false,
+      "keybind": 0,
+      "settings": {
+        "Скорость": 1.0,
+        "Выход при уроне": true
+      }
+    },
+    {
+      "name": "Nametags",
+      "enabled": false,
+      "keybind": 96,
+      "settings": {
+        "Броня": true,
+        "Голова": true,
+        "Здоровье": true,
+        "Пинг": true,
+        "Себя": false,
+        "Цвет имени": -1,
+        "Цвет HP": -1,
+        "Цвет фона": -2147483648,
+        "Цвет тега F": -16711936
+      }
+    },
+    {
+      "name": "NoFov",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "FullBright",
+      "enabled": false,
+      "keybind": 0
+    },
+    {
+      "name": "NoHurtCam",
+      "enabled": true,
+      "keybind": 0
+    },
+    {
+      "name": "AntiBlind",
+      "enabled": false,
+      "keybind": 0
+    },
+    {
+      "name": "FriendESP",
+      "enabled": true,
+      "keybind": 0,
+      "settings": {
+        "Рамка": true,
+        "Линия к другу": true,
+        "Себя": true,
+        "Угол обзора": 90.0
+      }
+    },
+    {
+      "name": "FriendHUD",
+      "enabled": false,
+      "keybind": 0,
+      "settings": {
+        "Здоровье": true,
+        "Пинг": true
+      }
+    },
+    {
+      "name": "FriendArrow",
+      "enabled": true,
+      "keybind": 0,
+      "settings": {
+        "Дистанция": true,
+        "Радиус": 80.0,
+        "Размер": 10.0
+      }
+    },
+    {
+      "name": "NoDelay",
+      "enabled": false,
+      "keybind": 0,
+      "settings": {
+        "Убрать задержку": {
+          "Прыжка": false,
+          "Ломания": false,
+          "ПКМ": false
+        }
+      }
+    },
+    {
+      "name": "NoInteract",
+      "enabled": false,
+      "keybind": 66,
+      "settings": {
+        "Только при Aura": true,
+        "Блоки": true,
+        "Сущности": true
+      }
+    },
+    {
+      "name": "ChestStealer",
+      "enabled": false,
+      "keybind": 90,
+      "settings": {
+        "Мин. задержка (мс)": 80.0,
+        "Макс. задержка (мс)": 250.0,
+        "Случайный порядок": true,
+        "Авто-закрытие": true
+      }
+    },
+    {
+      "name": "AutoRespawn",
+      "enabled": false,
+      "keybind": 0,
+      "settings": {
+        "Задержка (с)": 0.5
+      }
+    }
+  ],
+  "panels": {
+    "Player": {
+      "x": 410,
+      "y": 20
+    },
+    "Movement": {
+      "x": 150,
+      "y": 20
+    },
+    "Render": {
+      "x": 280,
+      "y": 20
+    },
+    "Combat": {
+      "x": 20,
+      "y": 20
+    },
+    "Menu": {
+      "x": 20,
+      "y": 340
+    },
+    "World": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "hud": {
+    "watermark": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  }
+}

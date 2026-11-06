@@ -8,10 +8,7 @@ import dexum.client.system.features.player.AutoRespawn;
 import dexum.client.system.features.player.ChestStealer;
 import dexum.client.system.features.player.NoDelay;
 import dexum.client.system.features.player.NoInteract;
-import dexum.client.system.features.player.StreamerMode;
 import dexum.client.system.features.render.*;
-import dexum.client.system.features.world.NoWeather;
-import dexum.client.system.features.world.TimeChanger;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -27,21 +24,19 @@ public class FunctionManager {
         register(new TriggerBot(), new NoFriendDamage(), new AimAssist());
 
         // movement
-        register(new Sprint(), new NoSlow(), new NoPush(), new AutoSneak(), new NoFall());
+        register(new Sprint(), new AutoSneak());
 
         // render
         register(
-            new ClickGui(), new NoBob(), new Watermark(), new FreeCam(),
-            new Nametags(), new NoFov(), new TargetESP(),
-            new FullBright(), new Zoom(), new NoHurtCam(), new AntiBlind(),
-            new FriendESP(), new FriendHUD(), new FriendArrow()
+                new ClickGui(), new NoBob(), new Watermark(), new FreeCam(),
+                new Nametags(), new NoFov(),
+                new FullBright(), new NoHurtCam(), new AntiBlind(),
+                new FriendESP(), new FriendHUD(), new FriendArrow(),
+                new HudEditMode()
         );
 
         // player
-        register(new NoDelay(), new NoInteract(), new ChestStealer(), new AutoRespawn(), new StreamerMode());
-
-        // world
-        register(new TimeChanger(), new NoWeather());
+        register(new NoDelay(), new NoInteract(), new ChestStealer(), new AutoRespawn());
     }
 
     private static void register(Function... functionArray) {

@@ -4,10 +4,8 @@ import com.mojang.authlib.GameProfile;
 import dexum.client.system.events.EventBus;
 import dexum.client.system.events.impl.MoveEvent;
 import dexum.client.system.events.impl.MotionEvent;
-import dexum.client.system.events.impl.NoSlowEvent;
 import dexum.client.system.events.impl.PostMotionEvent;
 import dexum.client.system.events.impl.PushEvent;
-import dexum.client.system.events.impl.UpdateEvent;
 import dexum.client.system.rotation.ServerAngleStore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -20,33 +18,15 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LocalPlayer.class)
 public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer {
 
-    @Shadow public abstract boolean isUsingItem();
     @Final @Shadow protected Minecraft minecraft;
 
     public ClientPlayerEntityMixin(ClientLevel world, GameProfile profile) {
         super(world, profile);
-    }
-
-    @Inject(method = "tick", at = @At("HEAD"), require = 0)
-    private void onTick(CallbackInfo ci) {
-        // UpdateEvent now sent via ClientTickEvents in Dexum.java
-    }
-
-    @Redirect(method = "aiStep",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/player/LocalPlayer;isUsingItem()Z"),
-            require = 0)
-    private boolean applyMovementSpeedFactors(LocalPlayer instance) {
-        NoSlowEvent event = new NoSlowEvent();
-        EventBus.post(event);
-        if (event.isCancelled()) return false;
-        return instance.isUsingItem();
     }
 
     @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true, require = 0)

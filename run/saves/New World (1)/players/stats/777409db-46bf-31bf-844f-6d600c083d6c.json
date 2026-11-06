@@ -1,0 +1,23 @@
+{
+  "stats": {
+    "minecraft:custom": {
+      "minecraft:sprint_one_cm": 2830,
+      "minecraft:time_since_rest": 1778,
+      "minecraft:walk_one_cm": 2472,
+      "minecraft:total_world_time": 4809,
+      "minecraft:fly_one_cm": 6676,
+      "minecraft:mob_kills": 1,
+      "minecraft:play_time": 1778,
+      "minecraft:damage_dealt": 255,
+      "minecraft:jump": 35,
+      "minecraft:time_since_death": 1778
+    },
+    "minecraft:killed": {
+      "minecraft:pig": 1
+    },
+    "minecraft:picked_up": {
+      "minecraft:porkchop": 2
+    }
+  },
+  "DataVersion": 4903
+}

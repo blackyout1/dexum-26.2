@@ -18,7 +18,7 @@ public abstract class Function {
     @Getter private final String desc;
     @Getter private final Category category;
     @Getter @Setter private int keybind;
-    @Getter @Setter private boolean enabled;
+    @Getter private boolean enabled;
     @Getter private final List<Setting> settings = new ArrayList<>();
 
     public Function() {
@@ -37,14 +37,41 @@ public abstract class Function {
         this.settings.addAll(Arrays.asList(setting));
     }
 
+    /**
+     * Пользовательский переключатель. Синоним {@link #setEnabled(boolean)} с инверсией.
+     */
     public void toggle() {
-        this.enabled = !this.enabled;
-        if (enabled) {
-            onEnable();
-            EventBus.register(this);
+        setEnabled(!enabled);
+    }
+
+    /**
+     * Идемпотентная установка состояния с корректной обработкой реентрантности.
+     * <p>
+     * Если {@code onEnable()} / {@code onDisable()} внутри вызывает {@code setEnabled()} ещё раз —
+     * внутренний вызов побеждает: после возврата из хука мы сверяем флаг {@code enabled}
+     * и регистрируемся в EventBus только если он всё ещё {@code true}.
+     * <p>
+     * Исключение внутри {@code onEnable()} откатывает флаг и не регистрирует модуль.
+     */
+    public void setEnabled(boolean value) {
+        if (value) {
+            if (this.enabled) return;
+            this.enabled = true;
+            try {
+                onEnable();
+            } catch (Throwable t) {
+                this.enabled = false;
+                EventBus.unregister(this);
+                throw t;
+            }
+            if (this.enabled) {
+                EventBus.register(this);
+            }
         } else {
-            onDisable();
+            if (!this.enabled) return;
+            this.enabled = false;
             EventBus.unregister(this);
+            onDisable();
         }
     }
 

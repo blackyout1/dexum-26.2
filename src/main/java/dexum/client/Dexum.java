@@ -1,6 +1,7 @@
 package dexum.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dexum.client.system.api.Function;
 import dexum.client.system.api.FunctionManager;
 import dexum.client.system.command.CommandManager;
 import dexum.client.system.command.impl.*;
@@ -10,12 +11,11 @@ import dexum.client.system.events.EventManager;
 import dexum.client.system.events.impl.Render2DEvent;
 import dexum.client.system.events.impl.UpdateEvent;
 import dexum.client.system.friends.FriendManager;
-import dexum.client.system.ui.ClickGuiScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,8 +26,6 @@ public class Dexum implements ClientModInitializer {
 
     // Tracks previous key-down state per keycode to detect press edges
     private final Map<Integer, Boolean> keyStateMap = new HashMap<>();
-    
-    private static ClickGuiScreen clickGuiScreen;
 
     @Override
     public void onInitializeClient() {
@@ -46,8 +44,6 @@ public class Dexum implements ClientModInitializer {
                 new FriendCommand()
         );
 
-        clickGuiScreen = new ClickGuiScreen();
-
         Runtime.getRuntime().addShutdownHook(new Thread(ConfigManager::shutdown));
 
         // Render2DEvent via HudElementRegistry (26.2 way)
@@ -65,30 +61,20 @@ public class Dexum implements ClientModInitializer {
                 EventBus.post(new UpdateEvent());
             }
 
-            // Keybind handling — don't fire while a screen (inventory, chat, etc.) is open
+            // Keybinds — не фаерим, когда открыт экран
             boolean screenOpen = client.gui.screen() != null;
             if (!screenOpen && client.player != null) {
-                for (dexum.client.system.api.Function f : dexum.client.system.api.FunctionManager.getFunctions()) {
+                for (Function f : FunctionManager.getFunctions()) {
                     int key = f.getKeybind();
-                    if (key > 0) {
-                        boolean isPressed = InputConstants.isKeyDown(client.getWindow(), key);
-                        boolean wasPressed = keyStateMap.getOrDefault(key, false);
-                        if (isPressed && !wasPressed) {
-                            f.toggle();
-                        }
-                        keyStateMap.put(key, isPressed);
+                    if (key == GLFW.GLFW_KEY_UNKNOWN) continue;
+
+                    boolean isPressed  = InputConstants.isKeyDown(client.getWindow(), key);
+                    boolean wasPressed = keyStateMap.getOrDefault(key, false);
+                    if (isPressed && !wasPressed) {
+                        f.toggle();
                     }
+                    keyStateMap.put(key, isPressed);
                 }
-                
-                // Click GUI toggle with Right Shift
-                boolean rightShiftDown = InputConstants.isKeyDown(client.getWindow(), 344);
-                boolean wasRightShiftDown = keyStateMap.getOrDefault(344, false);
-                if (rightShiftDown && !wasRightShiftDown) {
-                    if (clickGuiScreen != null && client.gui.screen() == null) {
-                        client.setScreenAndShow(clickGuiScreen);
-                    }
-                }
-                keyStateMap.put(344, rightShiftDown);
             }
         });
     }

@@ -4,8 +4,7 @@ import dexum.client.interfaces.ILivingEntity;
 import dexum.client.system.events.EventBus;
 import dexum.client.system.events.impl.JumpEvent;
 import dexum.client.system.events.impl.PushEvent;
-import dexum.client.system.features.movement.NoPush;
-import dexum.client.system.rotation.RotationManager;
+import dexum.client.system.rotation.ServerAngleStore;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -23,7 +22,6 @@ import java.lang.reflect.Field;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin implements ILivingEntity {
 
-    // In MC 26.2 the field is "jumpTicks" in LivingEntity
     private static final Field JUMP_TICKS = resolveField();
     private static Field resolveField() {
         for (String name : new String[]{"jumpTicks", "jumpCooldown", "ticksUntilNextJump"}) {
@@ -44,7 +42,6 @@ public class LivingEntityMixin implements ILivingEntity {
 
     @Inject(method = "isPushable", at = @At("HEAD"), cancellable = true, require = 0)
     public void onIsPushable(CallbackInfoReturnable<Boolean> cir) {
-        if (NoPush.Instance != null && NoPush.Instance.isEnabled() && NoPush.players.isEnabled()) cir.setReturnValue(false);
         PushEvent event = new PushEvent(PushEvent.Type.COLLISION);
         EventBus.post(event);
         if (event.isCancelled()) cir.setReturnValue(false);
@@ -63,8 +60,9 @@ public class LivingEntityMixin implements ILivingEntity {
     private Vec3 hookJumpMoveCorrection(Vec3 original) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || (Object) this != client.player) return original;
-        if (!RotationManager.INSTANCE.isActive() || !RotationManager.INSTANCE.isMoveCorrection()) return original;
-        float yaw = RotationManager.INSTANCE.getMoveRotation().getYaw() * 0.017453292F;
+        if (!ServerAngleStore.INSTANCE.isActive()) return original;
+
+        float yaw = ServerAngleStore.INSTANCE.getServerYaw() * 0.017453292F;
         return new Vec3(-Mth.sin(yaw) * 0.2F, 0.0, Mth.cos(yaw) * 0.2F);
     }
 }

@@ -30,7 +30,9 @@
     "input.MouseMixin",
     "input.HudMouseMixin",
 
-    "accessor.CameraAccessor"
+    "accessor.CameraAccessor",
+    "render.LightTextureMixin",
+    "render.GameRendererMixin"
   ],
   "client": [
   ],

@@ -28,7 +28,7 @@ public class FriendESP extends Function {
 
     private static final Color BOX_COLOR  = new Color(60, 220, 80, 200);
     private static final Color BOX_FILL   = new Color(30, 180, 50, 18);
-    private static final Color LINE_COLOR = new Color(60, 220, 80, 140);
+    private static final Color LINE_COLOR = new Color(60, 220, 80, 180);
 
     public FriendESP() {
         addSettings(showBox, showLine, showSelf, angle);
@@ -41,7 +41,6 @@ public class FriendESP extends Function {
         GuiGraphicsExtractor ctx = event.getContext();
         float td = event.getTickCounter().getGameTimeDeltaPartialTick(false);
 
-        // Кэшируем данные камеры один раз
         double camX = mc.player.getX();
         double camY = mc.player.getEyeY();
         double camZ = mc.player.getZ();
@@ -52,13 +51,10 @@ public class FriendESP extends Function {
             if (player == mc.player && !showSelf.isEnabled()) continue;
             if (!FriendManager.isFriend(player.getGameProfile().name())) continue;
             if (!player.isAlive()) continue;
-
-            // Проверка угла обзора
             if (!shouldRender(player, camX, camY, camZ, look)) continue;
 
-            // Используем WorldToScreen для правильной проекции
+            double py = Mth.lerp(td, player.yo, player.getY()) + (player == mc.player ? 1.0 : player.getEyeHeight());
             double px = Mth.lerp(td, player.xo, player.getX());
-            double py = Mth.lerp(td, player.yo, player.getY()) + player.getEyeHeight();
             double pz = Mth.lerp(td, player.zo, player.getZ());
 
             float[] screen = WorldToScreen.project(px, py, pz);
@@ -67,7 +63,6 @@ public class FriendESP extends Function {
             float screenX = screen[0];
             float screenY = screen[1];
 
-            // Размер бокса в пикселях (примерно по расстоянию)
             double distance = Math.sqrt((px - camX) * (px - camX) + (py - camY) * (py - camY) + (pz - camZ) * (pz - camZ));
             float size = (float) (40.0 / distance * 10.0);
             size = Math.max(8f, Math.min(60f, size));
@@ -83,7 +78,7 @@ public class FriendESP extends Function {
         }
 
         if (showLine.isEnabled()) {
-            drawLines(camX, camY, camZ);
+            drawLines(ctx, td, camX, camY, camZ);
         }
     }
 
@@ -91,48 +86,108 @@ public class FriendESP extends Function {
         Vec3 eye = new Vec3(camX, camY, camZ);
         Vec3 to = player.getEyePosition().subtract(eye);
         double dist = to.length();
+
         if (dist < 0.1) return true;
+
         to = to.normalize();
         double dot = look.dot(to);
         double angleRad = Math.acos(Math.min(1.0, Math.max(-1.0, dot)));
         return Math.toDegrees(angleRad) <= angle.getValue();
     }
 
-    private void drawLines(double camX, double camY, double camZ) {
+    private void drawLines(GuiGraphicsExtractor ctx, float td, double camX, double camY, double camZ) {
+        int sw = mc.getWindow().getGuiScaledWidth();
+        int sh = mc.getWindow().getGuiScaledHeight();
+        float cx = sw / 2f, cy = sh / 2f;
+
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof Player player)) continue;
-            if (player == mc.player && !showSelf.isEnabled()) continue;
+            if (player == mc.player) continue;
             if (!FriendManager.isFriend(player.getGameProfile().name())) continue;
             if (!player.isAlive()) continue;
-            if (!shouldRender(player, camX, camY, camZ, mc.player.getLookAngle())) continue;
 
-            // Используем WorldToScreen для правильной проекции
-            double px = player.getX();
-            double py = player.getEyeY();
-            double pz = player.getZ();
+            // Если друг вне поля зрения (за спиной), мы всё равно рисуем линию к краю экрана
+            // для этого используем математику углов
+            Vec3 eye = mc.player.getEyePosition();
+            Vec3 target = player.getBoundingBox().getCenter();
+            Vec3 dir = target.subtract(eye);
+            boolean inFront = dir.dot(mc.player.getLookAngle()) > 0;
 
-            float[] screen = WorldToScreen.project(px, py, pz);
-            if (screen == null) continue;
+            float[] screen = WorldToScreen.project(Mth.lerp(td, player.xo, player.getX()),
+                    Mth.lerp(td, player.yo, player.getY()) + player.getEyeHeight(),
+                    Mth.lerp(td, player.zo, player.getZ()));
 
-            float tx = screen[0];
-            float ty = screen[1];
+            float tx, ty;
 
-            int sw = mc.getWindow().getGuiScaledWidth();
-            int sh = mc.getWindow().getGuiScaledHeight();
-            float x1 = sw / 2f, y1 = sh / 2f;
-            float dx2 = tx - x1, dy2 = ty - y1;
-            float len = (float) Math.sqrt(dx2 * dx2 + dy2 * dy2);
-            if (len < 1f) continue;
+            if (screen == null || !inFront) {
+                // Друг за спиной или за экраном — вычисляем угол и ведем линию к краю
+                double yawTo = Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0;
+                double deltaYaw = Mth.wrapDegrees(yawTo - mc.player.getYRot());
+                float rad = (float) Math.toRadians(deltaYaw);
 
-            float nx = -dy2 / len, ny = dx2 / len;
-            float thickness = 0.6f;
-            float steps = Math.max(1f, len / 4f);
-            for (float i = 0; i <= steps; i++) {
-                float t = i / steps;
-                float px2 = x1 + dx2 * t, py2 = y1 + dy2 * t;
-                RenderUtil.rect(px2 + nx * thickness, py2 + ny * thickness,
-                        2 * thickness, 2 * thickness, 0f, LINE_COLOR);
+                // Линия от центра в сторону угла
+                tx = cx + (float) Math.sin(rad) * 10000f;
+                ty = cy - (float) Math.cos(rad) * 10000f;
+            } else {
+                tx = screen[0];
+                ty = screen[1];
             }
+
+            // Обрезаем линию до границ экрана (Liang-Barsky)
+            float[] clipped = clipLine(cx, cy, tx, ty, 0, 0, sw, sh);
+            if (clipped == null) continue;
+
+            // Рисуем гладкую линию с шагом 1 пиксель
+            drawLineSmooth(ctx, cx, cy, clipped[2], clipped[3], LINE_COLOR);
+        }
+    }
+
+    // Обрезка линии по границам экрана
+    private float[] clipLine(float x1, float y1, float x2, float y2, float minX, float minY, float maxX, float maxY) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float[] p = {-dx, dx, -dy, dy};
+        float[] q = {x1 - minX, maxX - x1, y1 - minY, maxY - y1};
+
+        float u1 = 0, u2 = 1;
+        for (int i = 0; i < 4; i++) {
+            if (p[i] == 0) {
+                if (q[i] < 0) return null;
+            } else {
+                float t = q[i] / p[i];
+                if (p[i] < 0) {
+                    if (t > u2) return null;
+                    if (t > u1) u1 = t;
+                } else {
+                    if (t < u1) return null;
+                    if (t < u2) u2 = t;
+                }
+            }
+        }
+        return new float[]{x1, y1, x1 + u2 * dx, y1 + u2 * dy};
+    }
+
+    // Плавная отрисовка линии без фризов
+    private void drawLineSmooth(GuiGraphicsExtractor ctx, float x1, float y1, float x2, float y2, Color color) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        int steps = (int) Math.max(Math.abs(dx), Math.abs(dy));
+        if (steps == 0) return;
+
+        float xStep = dx / steps;
+        float yStep = dy / steps;
+
+        float x = x1;
+        float y = y1;
+        int argb = color.getRGB();
+
+        for (int i = 0; i <= steps; i++) {
+            int ix = Math.round(x);
+            int iy = Math.round(y);
+            // Рисуем 2x2 пикселя для толщины, это быстрее чем RenderUtil.rect
+            ctx.fill(ix, iy, ix + 2, iy + 2, argb);
+            x += xStep;
+            y += yStep;
         }
     }
 }
